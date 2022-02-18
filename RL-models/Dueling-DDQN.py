@@ -54,13 +54,13 @@ def main():
         target_network = copy.deepcopy(policy_network)
         optimizer = optim.RMSprop(policy_network.parameters(), lr=lr)
         criterion = nn.MSELoss()
-        returns = np.zeros(NUM_EPISODES)
+        episode_rewards = np.zeros(NUM_EPISODES)
         total_steps = np.zeros(NUM_EPISODES)
 
         for ep in tqdm(range(NUM_EPISODES), leave=False, desc=f"LearningRate={lr}"):
             state = env.reset()
             done = False
-            ep_return = 0
+            ep_reward = 0
             epsilon = epsilon_values[ep]
             steps = 0
 
@@ -68,7 +68,7 @@ def main():
                 steps += 1
                 action = rl.select_action_from_network(state, epsilon, policy_network)
                 next_state, reward, done, info = env.step(action)
-                ep_return += reward
+                ep_reward += reward
                 experience = (state, action, reward, next_state, done) 
                 replay_buffer.store(experience)
                 state = next_state
@@ -97,7 +97,7 @@ def main():
                         policy_ratio = TAU * policy
                         target.data.copy_(target_ratio + policy_ratio)
 
-            returns[ep] = ep_return
+            episode_rewards[ep] = ep_reward
             total_steps[ep] = steps
             
             # save model 
@@ -107,7 +107,7 @@ def main():
                 torch.save(policy_network.state_dict(), save_path)
         
         train_stats[lr] = {}
-        train_stats[lr]['returns'] = returns
+        train_stats[lr]['rewards'] = episode_rewards
         train_stats[lr]['timesteps'] = total_steps
         
         train_df = rl.get_stats_df(train_stats)
@@ -128,26 +128,26 @@ def main():
         model.load_state_dict(torch.load(save_path))
         model.eval()
         
-        returns = np.zeros(EVAL_EPISODES)
+        episode_rewards = np.zeros(EVAL_EPISODES)
         total_steps = np.zeros(EVAL_EPISODES)
         for ep in tqdm(range(EVAL_EPISODES), leave=False, desc=f"LearningRate={lr}"):
             state = env.reset()
             done = False
-            ep_return = 0
+            ep_reward = 0
             steps = 0
             
             while not done:
                 steps += 1
                 action = rl.select_action_from_network(state, 0, model)
                 next_state, reward, done, info = env.step(action)
-                ep_return += reward
+                ep_reward += reward
                 state = next_state
             
-            returns[ep] = ep_return
+            episode_rewards[ep] = ep_reward
             total_steps[ep] = steps
             
         eval_stats[lr] = {}
-        eval_stats[lr]['returns'] = returns
+        eval_stats[lr]['rewards'] = episode_rewards
         eval_stats[lr]['timesteps'] = total_steps
         
         eval_df = rl.get_stats_df(eval_stats)
