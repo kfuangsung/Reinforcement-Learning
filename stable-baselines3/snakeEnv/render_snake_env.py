@@ -3,14 +3,15 @@ from stable_baselines3 import PPO
 from snake_env import *
 
 env = SnakeGameEnv()
-model = PPO.load("snake_game/ppo_snake_game_2")
+model = PPO.load("snake_game/ppo_snake_game_1000000x10")
 
-num_episode = 10
+num_episode = 5
 rewards = []
 infos = []
 steps = []
 
 for i in range(num_episode):
+    print(f"Episode: {i+1}")
     done = False
     state = env.reset()
     env.render()

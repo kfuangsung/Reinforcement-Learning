@@ -12,8 +12,8 @@ class SnakeGameEnv(gym.Env):
     difficulty = 25
     
     # Window size --> smaller window is easier to find food
-    frame_size_x = 480
-    frame_size_y = 360
+    frame_size_x = 600
+    frame_size_y = 450
     
     # Colors (R, G, B)
     black = pygame.Color(0, 0, 0)
@@ -57,8 +57,13 @@ class SnakeGameEnv(gym.Env):
         # action --> UP, DOWN, LEFT, RIGHT
         self.action_space = spaces.Discrete(4)
         
-        # (x_snake, y_snake, x_food, y_food, x_snake_to_food, y_snake_to_food, snake_length)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(7,), dtype=np.float32)
+        # x_snake_head, y_snake_head,
+        # x_snake_tail, y_snake_tail,
+        # x_food, y_food,
+        # x_snake_to_food, y_snake_to_food,
+        # distance_to_food,
+        # snake_length
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
     
     def step(self, action):
         # 0 --> LEFT
@@ -113,14 +118,14 @@ class SnakeGameEnv(gym.Env):
         curr_distance = distance.euclidean(self.snake_pos, self.food_pos)
         if curr_distance < prev_distance:
             reward += 1
-        else:
-            reward -= 1
+        # else:
+        #     reward -= 1
         self.prev_snake_pos = self.snake_pos.copy()
             
          # Snake body growing mechanism
         self.snake_body.insert(0, list(self.snake_pos))
         if self.snake_pos[0] == self.food_pos[0] and self.snake_pos[1] == self.food_pos[1]:
-            reward += 100 # get huge reward if eats food
+            reward += 50 * len(self.snake_body)# reward increase with body length
             self.score += 1 # score when render
             self.food_spawn = False
         else:
@@ -133,7 +138,8 @@ class SnakeGameEnv(gym.Env):
         self.food_spawn = True
         
         # Game Over conditions
-            # Getting out of bounds
+        
+            ## Getting out of bounds
         if self.snake_pos[0] < 0 or self.snake_pos[0] > self.frame_size_x - 10:
             info['GameOver'] = 'Out of bound X'
             done = True
@@ -141,23 +147,32 @@ class SnakeGameEnv(gym.Env):
             info['GameOver'] = 'Out of bound Y'
             done = True
             
-            # Touching the snake body
+            ## Touching the snake body
         for block in self.snake_body[1:]:
             if self.snake_pos[0] == block[0] and self.snake_pos[1] == block[1]:
                 info['GameOver'] = 'Eat itself'
                 done = True
                 
-            # reach maximum steps
+            ## reach maximum steps
         if self.step_count >= self.max_steps:
             info['GameOver'] = 'reach maximum steps'
 
         # new observation
-        x_snake_to_food = abs(self.snake_pos[0] - self.food_pos[0])
-        y_snake_to_food = abs(self.snake_pos[1] - self.food_pos[1])
-        observation = np.array([self.snake_pos[0], self.snake_pos[1],
-                                self.food_pos[0], self.food_pos[1],
+        snake_length = len(self.snake_body)
+        x_snake_head, y_snake_head = self.snake_body[0]
+        x_snake_tail, y_snake_tail = self.snake_body[-1]
+        x_food, y_food = self.food_pos
+        x_snake_to_food = x_snake_head - x_food
+        y_snake_to_food = y_snake_head - y_food
+        distance_to_food = distance.euclidean(self.snake_pos, self.food_pos)
+
+        observation = np.array([x_snake_head, y_snake_head,
+                                x_snake_tail, y_snake_tail,
+                                x_food, y_food,
                                 x_snake_to_food, y_snake_to_food,
-                                len(self.snake_body)])
+                                distance_to_food,
+                                snake_length], 
+                                dtype=np.float32)
         
         return observation, reward, done, info
     
@@ -173,12 +188,22 @@ class SnakeGameEnv(gym.Env):
         self.change_to = self.direction
         self.step_count = 0
         
-        x_snake_to_food = abs(self.snake_pos[0] - self.food_pos[0])
-        y_snake_to_food = abs(self.snake_pos[1] - self.food_pos[1])
-        observation = np.array([self.snake_pos[0], self.snake_pos[1],
-                                self.food_pos[0], self.food_pos[1],
+        # observation
+        snake_length = len(self.snake_body)
+        x_snake_head, y_snake_head = self.snake_body[0]
+        x_snake_tail, y_snake_tail = self.snake_body[-1]
+        x_food, y_food = self.food_pos
+        x_snake_to_food = x_snake_head - x_food
+        y_snake_to_food = y_snake_head - y_food
+        distance_to_food = distance.euclidean(self.snake_pos, self.food_pos)
+        
+        observation = np.array([x_snake_head, y_snake_head,
+                                x_snake_tail, y_snake_tail,
+                                x_food, y_food,
                                 x_snake_to_food, y_snake_to_food,
-                                len(self.snake_body)])
+                                distance_to_food,
+                                snake_length], 
+                                dtype=np.float32)
         
         return observation
     
